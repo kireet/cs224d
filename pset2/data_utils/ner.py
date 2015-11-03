@@ -1,7 +1,7 @@
 ##
 # Utility functions for NER assignment
 # Assigment 2, part 1 for CS224D
-##
+##p
 
 from utils import invert_dict
 from numpy import *

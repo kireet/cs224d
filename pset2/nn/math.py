@@ -50,3 +50,4 @@ def multinomial_sample(p):
     using the above class.
     """
     return MultinomialSampler(p).sample(1)[0]
+

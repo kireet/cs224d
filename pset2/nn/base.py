@@ -314,6 +314,7 @@ class NNBase(object):
                 Jminus = self.compute_loss(x, y)
                 theta[ij] = tij # reset
                 grad_approx[ij] = (Jplus - Jminus)/(2*eps)
+
             # Compute Frobenius norm
             grad_delta = linalg.norm(grad_approx - grad_computed)
             print >> outfd, "grad_check: dJ/d%s error norm = %.04g" % (name, grad_delta),

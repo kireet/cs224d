@@ -138,26 +138,27 @@ Part (a) asks us to show that minimizing the cross entropy loss function from Se
 $$ PP(y, \hat{y}) = \frac{1}{\sum_{j=1}^{|V|}\slayer{y}{t}{j}\cdot\slayer{\hat{y}}{t}{j}}$$
 
 Given a correct class k, we have:
-$$J(theta) = -log(\slayer{\hat{y}}{t}{k}) , PP(y, \hat{y}) = \frac{1}{\slayer{\hat{y}}{t}{k}} $$
+$$J(\theta) = -log(\slayer{\hat{y}}{t}{k}) , PP(y, \hat{y}) = \frac{1}{\slayer{\hat{y}}{t}{k}} $$
 It's clear that as $\hat{y}$ increases, both values monotonically decrease. Thus minimizing the cross entropy loss should minimize perplexity. 
 
 \section{Part b}
 Part b asks us to calculate the gradients a time step t, with the previous time steps considered fixed. As before, we'll proceed element wise and then convert the results to vector notation/operations. We'll again change some notation. $U$ and $H$ will be unchanged but we'll again use $a$ and $z$ to refer to layer outputs and inputs, respectively.\vlayer{a}{h,t} and\vlayer{z}{h,t} will refer to the output and input of the hidden layer at time $t$. Similarly, $(x,t)$ and $(o,t)$ superscript will refer to the input and output layer at time $t$.
 
-First we calculate $\deriv{\vlayer{J}{t}}{U}$. As we've seen before, the derivative of the softmax and cross entropy loss combination simply results in a $\hat{y} - y$ vector. We term the input to the final output layer at time t as\vlayer{z}{3,t}
-$$\deriv{\vlayer{J}{t}}{U} = \deriv{\vlayer{J}{t}}{\vlayer{z}{3,t}}\cdot\deriv{\vlayer{z}{3,t}}{U} \triangleq\vlayer{\delta}{3,t}\cdot\deriv{\vlayer{z}{3,t}}{U}$$
+\subsection{Output Layer (U) Gradients}
+First we calculate $\deriv{\vlayer{J}{t}}{U}$. As we've seen before, the derivative of the softmax and cross entropy loss combination simply results in a $\hat{y} - y$ vector. We term the input to the final output layer at time t as\vlayer{z}{o,t}
+$$\deriv{\vlayer{J}{t}}{U} = \deriv{\vlayer{J}{t}}{\vlayer{z}{o,t}}\cdot\deriv{\vlayer{z}{o,t}}{U} \triangleq\vlayer{\delta}{o,t}\cdot\deriv{\vlayer{z}{o,t}}{U}$$
 Element wise for the 2nd term:
-$$ \deriv{\slayer{z}{3,t}{i}}{U_{ij}} = \deriv{}{U_{ij}} \sum_{k} U_{ik}\slayer{h}{t}{k}$$
+$$ \deriv{\slayer{z}{o,t}{i}}{U_{ij}} = \deriv{}{U_{ij}} \sum_{k} U_{ik}\slayer{h}{t}{k}$$
 $$ = \slayer{h}{t}{j}$$
 
 In matrix form we have:
 \[
 \nabla_{U} = 
 \begin{bmatrix}
-\slayer{\delta}{3,t}{1}\slayer{h}{t}{1}       & \slayer{\delta}{3,t}{1}\slayer{h}{t}{2} & \slayer{\delta}{3,t}{1}\slayer{h}{t}{3} & \dots & \slayer{\delta}{3,t}{1}\slayer{h}{t}{D_h} \\
-\slayer{\delta}{3,t}{2}\slayer{h}{t}{1}       & \slayer{\delta}{3,t}{2}\slayer{h}{t}{2} & \slayer{\delta}{3,t}{2}\slayer{h}{t}{3} & \dots & \slayer{\delta}{3,t}{2}\slayer{h}{t}{D_h} \\
+\slayer{\delta}{o,t}{1}\slayer{h}{t}{1}       & \slayer{\delta}{o,t}{1}\slayer{h}{t}{2} & \slayer{\delta}{o,t}{1}\slayer{h}{t}{3} & \dots & \slayer{\delta}{o,t}{1}\slayer{h}{t}{D_h} \\
+\slayer{\delta}{o,t}{2}\slayer{h}{t}{1}       & \slayer{\delta}{o,t}{2}\slayer{h}{t}{2} & \slayer{\delta}{o,t}{2}\slayer{h}{t}{3} & \dots & \slayer{\delta}{o,t}{2}\slayer{h}{t}{D_h} \\
 \vdots	& \vdots	&\vdots	&\ddots	& \vdots \\
-\slayer{\delta}{3,t}{|V|}\slayer{h}{t}{1}       & \slayer{\delta}{3,t}{|V|}\slayer{h}{t}{2} & \slayer{\delta}{3,t}{|V}\slayer{h}{t}{3} & \dots & \slayer{\delta}{3,t}{|V|}\slayer{h}{t}{D_h} \\
+\slayer{\delta}{o,t}{|V|}\slayer{h}{t}{1}       & \slayer{\delta}{o,t}{|V|}\slayer{h}{t}{2} & \slayer{\delta}{o,t}{|V|}\slayer{h}{t}{3} & \dots & \slayer{\delta}{o,t}{|V|}\slayer{h}{t}{D_h} \\
 \end{bmatrix}
 \]
 Thus:
@@ -165,6 +166,95 @@ Thus:
 \nabla_U = (\vlayer{\delta}{3,t})(\vlayer{h}{t})^\top
 \end{equation}We can check the dimensions and see we end up with $\nabla_U \reals{|V| \times D_h}$, which is correct as it matches the dimensions of $U$.
 
-Next we calculate \deriv{\vlayer{J}{t}}{H}, again element-wise. We define $\vlayer{z}{t,h}$ as the input hidden layer:
-$$\deriv{\vlayer{J}{t}}{H_{ij}} = \deriv{\vlayer{J}{t}}{\slayer{z}{t,h}{i}} \deriv{\slayer{z}{h,t}{i}}{H_{ij}}$$
+\subsection{Hidden Layer Weights (H) Gradients}\label{subsection_Ht}
+Next we calculate \deriv{\vlayer{J}{t}}{H}, again element-wise. We define $\vlayer{z}{h,t}$ as the input to the hidden layer:
+$$\deriv{\vlayer{J}{t}}{H_{ij}} = \deriv{\vlayer{J}{t}}{\slayer{z}{h,t}{i}} \cdot \deriv{\slayer{z}{h,t}{i}}{H_{ij}}$$
+
+First we derive the first term:
+$$\deriv{\vlayer{J}{t}}{\slayer{z}{h,t}{i}} = \deriv{\vlayer{J}{t}}{\slayer{a}{h,t}{i}}\cdot\deriv{\slayer{a}{h,t}{i}}{\slayer{z}{h,t}{i}}$$
+$$= \deriv{\vlayer{J}{t}}{\slayer{a}{h,t}{i}} \cdot \sigma'(\slayer{z}{h,t}{i})$$
+$$= \sigma'(\slayer{z}{h,t}{i})\cdot \left(\deriv{\vlayer{J}{t}}{\slayer{z}{o,t}{i}}\cdot\deriv{\slayer{z}{o,t}{i}}{\slayer{a}{h,t}{i}}\right)$$
+$$ = \sigma'(\slayer{z}{h,t}{i})\cdot \sum_k \left[\slayer{\delta}{o,t}{k} \deriv{}{\slayer{a}{h,t}{i}}\left(\ \sum_l U_{kl} \slayer{a}{h,t}{l} \right)\right]$$
+$$ \slayer{\delta}{h,t}{i} \triangleq \sigma'(\slayer{z}{h,t}{i}) \cdot \sum_k \slayer{\delta}{o,t}{k} U_{ki}$$
+The second term derivation:
+$$\deriv{\slayer{z}{h,t}{i}}{H_{ij}} = \deriv{}{H_{ij}}\left(\sum_k H_{ik}\slayer{a}{h,t-1}{k} + \sum_l L_{il}\slayer{x}{t}{l}\right)$$
+$$= \slayer{a}{h,t-1}{j}$$
+
+Combining these, we have:
+$$\deriv{\vlayer{J}{t}}{H_{ij}} = \slayer{\delta}{h,t}{i} \cdot \slayer{a}{h,t-i}{j}$$
+
+Similar to the layer 1 weights in the previous feed forward network problem, the vectorization of this is:
+
+\begin{equation} \label{eq:dh,t}
+\vlayer{\delta}{h,t} = \sigma'(\vlayer{z}{h,t}) \circ (U^\top \vlayer{\delta}{o,t})
+\end{equation}
+
+\begin{equation} \label{eq:H,t}
+\nabla_H = \vlayer{\delta}{h,t} (\vlayer{a}{h,t-1})^\top)
+\end{equation}
+
+We can check the dimensions, $U^\top$\reals{D_h\times|V|} and\vlayer{delta}{o,t}\reals{|V|} means that their product\reals{D_h}. This is correct, we should have an error term for each hidden layer unit. For equation \ref{eq:H,t}, we see that \vlayer{\delta}{h,t}\reals{D_h} from equation \ref{eq:dh,t} and $\vlayer{a}{h,t-1})^\top$\reals{1 \times D_h} which means $\nabla_H$\reals{D_h \times D_h}. This matches the dimensions of $H$.
+
+\subsection{Input ($L_{\vlayer{x}{t}}$) Gradients}
+\vlayer{x}{t} is simply a one hot vector that identifies the input word at time $t$. Thus multiplying this vector by $L$ simply extracts a word vector $L_{\vlayer{x}{t}}$\reals{D_h}. Unlike the feed forward network, we can see that there is no weights matrix used to combine this word vector into each hidden unit. Instead the $i^{th}$ hidden unit's sigmoid function simply receives the $i^{th}$ value from the word vector. Now we start our element wise derivation, using this fact:
+$$\deriv{\vlayer{J}{t}}{L_{\vlayer{x}{t}i}} = \sum_k \deriv{\vlayer{J}{t}}{\slayer{z}{t}{k}} \cdot \deriv{\slayer{z}{t}{k}}{L_{\vlayer{x}{t}i}}$$
+$$ = \deriv{\vlayer{J}{t}}{\slayer{z}{t}{i}} \cdot \deriv{\slayer{z}{t}{i}}{L_{\vlayer{x}{t}i}}$$
+$$ = \slayer{\delta}{h,t}{i} \cdot \deriv{}{L_{\vlayer{x}{t}i}}\left( \sum_k H_{ik}\slayer{a}{h,t-1}{k} + L_{\vlayer{x}{t}i} \right)$$
+$$ = \slayer{\delta}{h,t}{i}$$
+
+The vectorization is simply:
+\begin{equation} \label{eq:L,t}
+\nabla_{L_{\vlayer{x}{t}}} = \vlayer{\delta}{h,t}
+\end{equation}
+
+\subsection{Previous Time Step ($\vlayer{h}{t-1}$) Gradients}
+Finally we are asked to compute the gradients with respect to the previous time step. In our notation, this is\vlayer{a}{h,t-1}.
+$$\deriv{\vlayer{J}{t}}{\slayer{a}{h, t-1 }{j}} = \sum_i \deriv{\vlayer{J}{t}}{\slayer{z}{h,t}{i}} \cdot \deriv{\slayer{z}{h,t}{i}}{\slayer{a}{h,t-1}{j}}$$
+$$ = \sum_i \slayer{\delta}{h,t}{i} \cdot \deriv{}{\slayer{a}{h,t-1}{j}}\left( \sum_k H_{ik}\slayer{a}{h,t-1}{k} + L_{\vlayer{x}{t}i} \right)$$
+$$ = \sum_i \slayer{\delta}{h,t}{i} \cdot H_{ij}$$
+Before vectorizing, let's examine this formula. We see that for the error gradient at a hidden layer node at time $t-1$ is simply a weighted sum of the errors at time step $t$, with the weight being the appropriate value in the weights matrix. That is the weight from the $t-1$ node to all the nodes at time $t$. This is essentially the same logic as the feed forward network derivations. 
+
+Now in matrix form:
+\[
+\nabla_{\vlayer{a}{h,t-1}} = 
+\begin{bmatrix}
+\slayer{\delta}{h,t}{1}H_{11} + \slayer{\delta}{h,t}{2}H_{21} + \slayer{\delta}{h,t}{3}H_{31} + \dots + \slayer{\delta}{h,t}{D_h}H_{D_h1} \\
+\slayer{\delta}{h,t}{1}H_{12} + \slayer{\delta}{h,t}{2}H_{22} + \slayer{\delta}{h,t}{3}H_{32} + \dots + \slayer{\delta}{h,t}{D_h}H_{D_h2} \\
+\vdots \\
+\slayer{\delta}{h,t}{1}H_{1D_h} + \slayer{\delta}{h,t}{2}H_{2D_h} + \slayer{\delta}{h,t}{3}H_{3D_h} + \dots + \slayer{\delta}{h,t}{D_h}H_{D_hD_h} \\
+
+\end{bmatrix}
+\]
+
+\begin{equation} \label{eq:h,t-1}
+\nabla_{\vlayer{a}{h,t-1}} = H^\top \vlayer{\delta}{h,t}
+\end{equation}
+
+\section{Part c}
+Part c asks us to calculate the $t-1$ derivatives for $L_{\vlayer{x}{t-1}}$ and $H$.
+
+\subsection{Input ($L_{\vlayer{x}{t-1}}$) Gradients}
+To calculate $\deriv{\vlayer{J}{t}}{L_{\vlayer{x}{t-1}}}$, we can use the results from the previous part:
+
+$$\deriv{\vlayer{J}{t}}{L_{\vlayer{x}{t-1}}} = \deriv{\vlayer{J}{t}}{\vlayer{a}{h,t-1}}\cdot\deriv{\vlayer{a}{h, t-1}}{\vlayer{z}{h,t-1}}\cdot\deriv{\vlayer{z}{h, t-1}}{L_{\vlayer{x}{t-1}}}$$
+$$= \deriv{\vlayer{J}{t}}{\vlayer{a}{h,t-1}}\cdot\deriv{\vlayer{a}{h, t-1}}{\vlayer{z}{h,t-1}}\cdot \deriv{}{L_{\vlayer{x}{t-1}}} \left(H\vlayer{a}{t-1} + L_{\vlayer{x}{t-1}}\right)$$
+
+\begin{equation} \label{eq:h,t-1}
+\nabla_{L_{\vlayer{x}{h,t-1}}}= \sigma'(\vlayer{z}{h,t-1}) \circ H^\top \vlayer{\delta}{h,t}\end{equation}
+
+Note this is also $\deriv{\vlayer{J}{t}}{\vlayer{z}{h,t-1}}$ and thus is our \vlayer{\delta}{h,t-1}:
+
+\begin{equation} \label{eq:delta,t-1}
+\vlayer{\delta}{h,t-1}= \sigma'(\vlayer{z}{h,t-1}) \circ H^\top \vlayer{\delta}{h,t}\end{equation}
+
+\subsection{Hidden Layer Weights ($H$) Gradients}
+We again attempt to use previously calculated values to calculate the hidden layer weights matrix gradients at time step $t-1$:
+
+$$\left. \deriv{\vlayer{J}{t}}{H}\right|_{t-1} = \deriv{\vlayer{J}{t}}{\vlayer{z}{h,t-1}}\cdot\deriv{\vlayer{z}{h,t-1}}{H}$$
+
+The first term we know to be\vlayer{\delta}{h,t-1}. The second term derivation is essentially identical to the latter steps of subsection \ref{subsection_Ht}, resulting in $(\vlayer{a}{h,t-2})^\top$. Thus we have:
+\begin{equation}
+\left.\nabla_H\right|_{t-1} = \vlayer{\delta}{h,t-1} \cdot (\vlayer{a}{h,t-2})^\top
+\end{equation}
+Using these equation, we can backprop arbitrarily back in time by continually calculating the $\delta$ error values at each time step.
 \end{document}
