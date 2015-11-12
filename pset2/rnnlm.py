@@ -47,9 +47,13 @@ class RNNLM(NNBase):
         # Initialize word vectors
         # either copy the passed L0 and U0 (and initialize in your notebook)
         # or initialize with gaussian noise here
+        self.sparams.L = random.normal(0, sqrt(.1), L0.shape)
+        self.params.U = random.normal(0, sqrt(.1), L0.shape)
 
         # Initialize H matrix, as with W and U in part 1
+        self.params.H = random_weight_matrix(self.hdim, self.hdim)
 
+        self.bptt = bptt
         #### END YOUR CODE ####
 
 
@@ -97,13 +101,41 @@ class RNNLM(NNBase):
 
         ##
         # Forward propagation
-
+        # note that
+        # hs is indexed by timestep, i.e. hs[0] is h at t_0
+        # ps (y_hat's) is indexed by timestep - 1, i.e. ps[0] is y_hat at t_1
+        # xs is indexed by timestep - 1, i.e. ps[0] is x at t_1
+        for t in xrange(1, ns+1):
+            hs[t] = sigmoid(dot(self.params.H, hs[t-1]) + self.sparams.L[xs[t-1]])
+            ps[t-1] = softmax(dot(self.params.U, hs[t]))
 
         ##
         # Backward propagation through time
 
+        #need to add the errors from each time step t
+        for t in reversed(xrange(ns+1 - self.bptt, ns+1)):
 
+            print 'at t=%d' % t
+            #these 2 lines basically do y_hat - y
+            delta_o = ps[t-1].copy()
+            delta_o[ys[t-1]] -= 1
+            self.grads.U += outer(delta_o, hs[t])
 
+            tmin = max(t - self.bptt, 1)
+
+            #need to accumulate the errors from all previous time steps
+            delta_hs = None
+
+            for s in reversed(xrange(tmin, t+1)):
+                print 'at t=%d, WRT to %d' % (t,s)
+
+                if s == t:
+                    delta_hs = hs[t] * (1 - hs[t]) * dot(self.params.U.T, delta_o)
+                else:
+                    delta_hs = hs[s] * (1 - hs[s]) * dot(self.params.H.T, delta_hs)
+
+                self.grads.H += outer(delta_hs, hs[s-1])
+                self.sgrads.L[xs[s-1]] = delta_hs #remember xs is indexed by t-1
         #### END YOUR CODE ####
 
 
@@ -137,10 +169,16 @@ class RNNLM(NNBase):
         """
 
         J = 0
+
         #### YOUR CODE HERE ####
-
-
+        h = zeros(self.hdim)
+        for i in xrange(len(xs)):
+            h = sigmoid(dot(self.params.H, h) + self.sparams.L[xs[i]])
+            y_hat = softmax(dot(self.params.U, h))
+            y = ys[i]
+            J += - log(y_hat[y])
         #### END YOUR CODE ####
+
         return J
 
 
@@ -234,3 +272,10 @@ class ExtraCreditRNNLM(RNNLM):
         #### YOUR CODE HERE ####
         raise NotImplementedError("generate_sequence() not yet implemented.")
         #### END YOUR CODE ####
+
+random.seed(10)
+wv_dummy = random.randn(10,50)
+model = RNNLM(L0 = wv_dummy, U0 = wv_dummy,
+              alpha=0.005, rseed=10, bptt=4)
+#model.grad_check(array([1,2,3]), array([2,3,4]))
+model.grad_check(array([1,2,3]), array([2,3,4]))
