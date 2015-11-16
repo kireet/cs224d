@@ -35,6 +35,8 @@ class RNNLM(NNBase):
 
         self.hdim = L0.shape[1] # word vector dimensions
         self.vdim = L0.shape[0] # vocab size
+        self.alpha = alpha
+
         param_dims = dict(H = (self.hdim, self.hdim),
                           U = L0.shape)
         # note that only L gets sparse updates
@@ -54,6 +56,7 @@ class RNNLM(NNBase):
         self.params.H = random_weight_matrix(self.hdim, self.hdim)
 
         self.bptt = bptt
+
         #### END YOUR CODE ####
 
 
@@ -113,9 +116,9 @@ class RNNLM(NNBase):
         # Backward propagation through time
 
         #need to add the errors from each time step t
-        for t in reversed(xrange(ns+1 - self.bptt, ns+1)):
+        for t in reversed(xrange(max(1, ns+1 - self.bptt), ns+1)):
 
-            print 'at t=%d' % t
+            #print 'at t=%d' % t
             #these 2 lines basically do y_hat - y
             delta_o = ps[t-1].copy()
             delta_o[ys[t-1]] -= 1
@@ -127,7 +130,7 @@ class RNNLM(NNBase):
             delta_hs = None
 
             for s in reversed(xrange(tmin, t+1)):
-                print 'at t=%d, WRT to %d' % (t,s)
+                #print 'at t=%d, WRT to %d' % (t,s)
 
                 if s == t:
                     delta_hs = hs[t] * (1 - hs[t]) * dot(self.params.U.T, delta_o)
@@ -205,7 +208,6 @@ class RNNLM(NNBase):
         ntot = sum(map(len,Y))
         return J / float(ntot)
 
-
     def generate_sequence(self, init, end, maxlen=100):
         """
         Generate a sequence from the language model,
@@ -235,9 +237,20 @@ class RNNLM(NNBase):
         ys = [init] # emitted sequence
 
         #### YOUR CODE HERE ####
+        h = zeros(self.hdim)
+        for t in xrange(1,maxlen+1):
+            x = ys[t-1]
+            h = sigmoid(dot(self.params.H, h) + self.sparams.L[x])
+            y_hat = softmax(dot(self.params.U, h))
+            y = multinomial_sample(y_hat)
+            J += - log(y_hat[y])
+            ys.append(y)
 
+
+        ys.append(end)
 
         #### YOUR CODE HERE ####
+
         return ys, J
 
 
@@ -272,10 +285,3 @@ class ExtraCreditRNNLM(RNNLM):
         #### YOUR CODE HERE ####
         raise NotImplementedError("generate_sequence() not yet implemented.")
         #### END YOUR CODE ####
-
-random.seed(10)
-wv_dummy = random.randn(10,50)
-model = RNNLM(L0 = wv_dummy, U0 = wv_dummy,
-              alpha=0.005, rseed=10, bptt=4)
-#model.grad_check(array([1,2,3]), array([2,3,4]))
-model.grad_check(array([1,2,3]), array([2,3,4]))
