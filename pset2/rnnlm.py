@@ -54,7 +54,7 @@ class RNNLM(NNBase):
 
         # Initialize H matrix, as with W and U in part 1
         self.params.H = random_weight_matrix(self.hdim, self.hdim)
-
+        self.backprop_steps = 0
         self.bptt = bptt
 
         #### END YOUR CODE ####
@@ -101,7 +101,6 @@ class RNNLM(NNBase):
         ps = zeros((ns, self.vdim))
 
         #### YOUR CODE HERE ####
-
         ##
         # Forward propagation
         # note that
@@ -109,6 +108,7 @@ class RNNLM(NNBase):
         # ps (y_hat's) is indexed by timestep - 1, i.e. ps[0] is y_hat at t_1
         # xs is indexed by timestep - 1, i.e. ps[0] is x at t_1
         for t in xrange(1, ns+1):
+            #print 'forward prop through %d' % xs[t-1]
             hs[t] = sigmoid(dot(self.params.H, hs[t-1]) + self.sparams.L[xs[t-1]])
             ps[t-1] = softmax(dot(self.params.U, hs[t]))
 
@@ -116,7 +116,7 @@ class RNNLM(NNBase):
         # Backward propagation through time
 
         #need to add the errors from each time step t
-        for t in reversed(xrange(max(1, ns+1 - self.bptt), ns+1)):
+        for t in reversed(xrange(1, ns+1)):
 
             #print 'at t=%d' % t
             #these 2 lines basically do y_hat - y
@@ -139,6 +139,7 @@ class RNNLM(NNBase):
 
                 self.grads.H += outer(delta_hs, hs[s-1])
                 self.sgrads.L[xs[s-1]] = delta_hs #remember xs is indexed by t-1
+                self.backprop_steps += 1
         #### END YOUR CODE ####
 
 
@@ -243,6 +244,7 @@ class RNNLM(NNBase):
             h = sigmoid(dot(self.params.H, h) + self.sparams.L[x])
             y_hat = softmax(dot(self.params.U, h))
             y = multinomial_sample(y_hat)
+            print 'selected %d of %d with p=%f' % (y, y_hat.shape[0], y_hat[y])
             J += - log(y_hat[y])
             ys.append(y)
 
@@ -285,3 +287,63 @@ class ExtraCreditRNNLM(RNNLM):
         #### YOUR CODE HERE ####
         raise NotImplementedError("generate_sequence() not yet implemented.")
         #### END YOUR CODE ####
+#
+# from data_utils import utils as du
+# import pandas as pd
+#
+# # Load the vocabulary
+# vocab = pd.read_table("data/lm/vocab.ptb.txt", header=None, sep="\s+",
+#                      index_col=0, names=['count', 'freq'], )
+#
+# # Choose how many top words to keep
+# vocabsize = 2000
+# num_to_word = dict(enumerate(vocab.index[:vocabsize]))
+# word_to_num = du.invert_dict(num_to_word)
+# ##
+# # Below needed for 'adj_loss': DO NOT CHANGE
+# fraction_lost = float(sum([vocab['count'][word] for word in vocab.index
+#                            if (not word in word_to_num)
+#                                and (not word == "UUUNKKK")]))
+# fraction_lost /= sum([vocab['count'][word] for word in vocab.index
+#                       if (not word == "UUUNKKK")])
+# print "Retained %d words from %d (%.02f%% of all tokens)" % (vocabsize, len(vocab),
+#                                                              100*(1-fraction_lost))
+#
+# # Load the training set
+# docs = du.load_dataset('data/lm/ptb-train.txt')
+# S_train = du.docs_to_indices(docs, word_to_num)
+# X_train, Y_train = du.seqs_to_lmXY(S_train)
+#
+# # Load the dev set (for tuning hyperparameters)
+# docs = du.load_dataset('data/lm/ptb-dev.txt')
+# S_dev = du.docs_to_indices(docs, word_to_num)
+# X_dev, Y_dev = du.seqs_to_lmXY(S_dev)
+#
+# # Load the test set (final evaluation only)
+# docs = du.load_dataset('data/lm/ptb-test.txt')
+# S_test = du.docs_to_indices(docs, word_to_num)
+# X_test, Y_test = du.seqs_to_lmXY(S_test)
+#
+# # Display some sample data
+# print " ".join(d[0] for d in docs[7])
+# print S_test[7]
+#
+# random.seed(10)
+#
+# hdim = 100 # dimension of hidden layer = dimension of word vectors
+# random.seed(10)
+#
+# L0 = zeros((vocabsize, hdim))
+#
+# model = RNNLM(L0, U0 = L0, alpha=0.05, rseed=10, bptt=100)
+#
+# ##
+# # Pare down to a smaller dataset, for speed
+# # (optional - recommended to not do this for your final model)
+# ntrain = 10#len(Y_train)
+# X = X_train[:ntrain]
+# Y = Y_train[:ntrain]
+#
+# print 'training set size: %d' % ntrain
+# model.train_sgd(X=X, y=Y, printevery=1000, costevery=10000)
+# print model.backprop_steps
